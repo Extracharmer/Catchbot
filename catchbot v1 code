@@ -1,0 +1,65 @@
+
+#include <Stepper.h>
+#include <math.h>
+#define STEPS 200
+
+Stepper stepper(STEPS, 2, 3);
+
+const int ir1 = 4;
+const int ir2 = 5;
+
+unsigned long t1 = 0; //unsigned: positive integer, long: more memory/32 bits
+unsigned long t2 = 0;
+
+float dt = 0; //time between beam breaks
+float vxi = 0; //horizontal speed component off the ramp
+float x = 0;
+float t = 0; //time of projectile motion
+
+const float sensorDistance = 0.065; //distance between sensors
+const float y = 0.816; //height of our table
+const float g = 9.8;
+
+void setup() {
+ Serial.begin(9600);
+
+  pinMode(ir1, INPUT); //read d4
+  pinMode(ir2, INPUT); //read d5
+
+  stepper.setSpeed(200);
+
+}
+
+void loop() {
+
+  while (digitalRead(ir1) ==  HIGH) {} //wait until first beam is broken
+
+  t1 = millis(); //takes timestamp of first beambreak
+
+  while (digitalRead(ir2) == HIGH) {} //wait until second beam is broken
+
+  t2 = millis();
+
+  if (t2 > t1) {
+    dt = (t2 - t1) / 1000.0; //calculating time then converting to seconds
+    vxi = sensorDistance / dt; //calculating horizontal speed off the ramp
+
+  
+    t = sqrt((2 * y) / g); //finding the fall time of the free fall component
+
+    
+    x = vxi * t; //horizontal disance using the horizontal initial speed and the fall time
+
+    Serial.print("Time (s): ");
+    Serial.println(T);
+    Serial.print("Distance x (m): ");
+    Serial.println(x);
+
+    int mStep = x * 1000.0 * 25.0;
+    stepper.step(mStep);
+  }
+
+  
+  while (digitalRead(ir1) == LOW || digitalRead(ir2) == LOW) {} //when sensors reset
+
+}
