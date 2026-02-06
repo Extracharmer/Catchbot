@@ -1,0 +1,67 @@
+//add libraries and setup stepper
+#include <Stepper.h>
+#include <math.h>
+#define STEPS 300
+
+Stepper stepper(STEPS, 2, 3); //set stepper pins
+
+const int ir1 = 4; //set IR pins
+const int ir2 = 5;
+const int ls = 6; // set limit switch
+
+unsigned long t1 = 0; //unsigned: positive integer, long: more memory/32 bits
+unsigned long t2 = 0;
+
+unsigned long backStep = 0;
+
+float dt = 0; //time between beam breaks
+float vxi = 0; //horizontal speed component off the ramp
+float x = 0; //horizontal distance
+float t = 0; //time of projectile motion
+
+const float sensorDistance = 0.065; //distance between sensors
+const float y = 0.816; //height of our table
+const float g = 9.8; //gravity
+
+void setup() {
+  Serial.begin(9600); //serial monitor
+
+  stepper.step(-100);
+
+  pinMode(ir1, INPUT); //set d4 to read
+  pinMode(ir2, INPUT); //set d5 to read
+  pinMode(ls, INPUT); //set d6 to read
+
+  stepper.setSpeed(500); //stepper speed
+}
+
+void loop() {
+  while (digitalRead(ir1) ==  HIGH) {} //wait until first beam is broken
+
+  t1 = millis(); //takes timestamp of first beambreak
+
+  while (digitalRead(ir2) == HIGH) {} //wait until second beam is broken
+
+  t2 = millis(); //time of 2nd beambreak
+
+  if (t2 > t1) {
+
+    dt = (t2 - t1) / 1000.0; //calculating time then converting to seconds
+    vxi = sensorDistance / dt; //calculating horizontal speed off the ramp
+  
+    t = sqrt((2 * y) / g); //finding the fall time of the free fall component
+    x = vxi * t; //horizontal disance using the horizontal initial speed and the fall time
+
+    Serial.print("Time (s): "); //print the time in seconds
+    Serial.println(t);
+    Serial.print("Distance x (m): "); //print the distance in meters
+    Serial.println(x);
+
+    unsigned long mStep = x * 1000.0 * 25.0;
+    backStep = mStep * -1;
+    stepper.step(mStep);
+    
+  }
+  delay(1000);
+  stepper.step(backStep);
+}
