@@ -1,0 +1,64 @@
+//add libraries and setup stepper
+#include <AccelStepper.h>
+#include <math.h>
+
+AccelStepper stepper(AccelStepper::DRIVER, 3, 2); //set stepper pins
+
+const int ir1 = 4; //set IR pins
+const int ir2 = 5;
+const int ls = 6; // set limit switch
+
+unsigned long t1 = 0; //unsigned: positive integer, long: more memory/32 bits
+unsigned long t2 = 0;
+
+unsigned long backStep = 0;
+
+float dt = 0; //time between beam breaks
+float vxi = 0; //horizontal speed component off the ramp
+float x = 0; //horizontal distance
+float t = 0; //time of projectile motion
+
+const float sensorDistance = 0.037; //distance between sensors
+const float y = 0.825; //height of our table
+const float g = 9.8; //gravity
+
+void setup() {
+  pinMode(ir1, INPUT); //set d4 to read
+  pinMode(ir2, INPUT); //set d5 to read
+  pinMode(ls, INPUT); //set d6 to read
+
+  stepper.setSpeed(20000);
+  stepper.setMaxSpeed(20000); //stepper speed
+  stepper.setAcceleration(100000); //stepper acceleration
+}
+
+void loop() {
+  while (digitalRead(ir1) ==  HIGH) {} //wait until first beam is broken
+
+  t1 = millis(); //takes timestamp of first beambreak
+
+  while (digitalRead(ir2) == HIGH) {} //wait until second beam is broken
+
+  t2 = millis(); //time of 2nd beambreak
+
+  if (t2 > t1) {
+
+    dt = (t2 - t1) / 1000.0; //calculating time then converting to seconds
+    vxi = sensorDistance / dt; //calculating horizontal speed off the ramp
+  
+    t = sqrt((2 * y) / g); //finding the fall time of the free fall component
+    x = vxi * t; //horizontal disance using the horizontal initial speed and the fall time
+
+    long mStep = x * 1000.0 * 20 * -1;
+
+    stepper.moveTo(mStep);
+    while (stepper.distanceToGo() != 0) {
+      stepper.run();
+    }
+    delay(1000);
+    stepper.moveTo(0);   // go back to origin
+    while (stepper.distanceToGo() != 0) {
+      stepper.run();
+    }
+  }
+}
