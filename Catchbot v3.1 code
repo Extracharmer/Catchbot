@@ -1,0 +1,94 @@
+#include <AccelStepper.h>
+#include <math.h>
+
+AccelStepper stepper(AccelStepper::DRIVER, 3, 2);
+
+const int ir1 = 4;
+const int ir2 = 5;
+const int ls  = 6;
+
+unsigned long t1 = 0;
+unsigned long t2 = 0;
+
+float dt = 0;
+float vxi = 0;
+float x = 0;
+float t = 0;
+
+const float sensorDistance = 0.037;
+const float y = 0.825;
+const float g = 9.8;
+
+void setup() {
+  Serial.begin(9600);
+
+  pinMode(ir1, INPUT_PULLUP);
+  pinMode(ir2, INPUT_PULLUP);
+  pinMode(ls, INPUT_PULLUP);
+
+  stepper.setMaxSpeed(1500);
+  stepper.setAcceleration(2000);
+
+  Serial.println("Ready");
+}
+
+void loop() {
+
+  // wait for marble to hit first sensor
+  while (digitalRead(ir1) == HIGH) {}
+  t1 = millis();
+
+  // wait for it to clear so we can reset next cycle
+  while (digitalRead(ir1) == LOW) {}
+
+  // wait for second sensor
+  while (digitalRead(ir2) == HIGH) {}
+  t2 = millis();
+
+  while (digitalRead(ir2) == LOW) {}
+
+  if (t2 <= t1) {
+    Serial.println("Bad timing");
+    return;
+  }
+
+  dt = (t2 - t1) / 1000.0;
+
+  if (dt <= 0) {
+    Serial.println("dt zero");
+    return;
+  }
+
+  vxi = sensorDistance / dt;
+
+  // optional sanity limit so motor never goes insane
+  if (vxi > 10) {
+    Serial.println("Too fast");
+    return;
+  }
+
+  t = sqrt((2 * y) / g);
+  x = vxi * t;
+
+  Serial.print("Speed: ");
+  Serial.println(vxi);
+
+  long mStep = x * 1000.0 * 20 * -1;
+
+  Serial.print("Steps: ");
+  Serial.println(mStep);
+
+  stepper.moveTo(mStep);
+  while (stepper.distanceToGo() != 0) {
+    stepper.run();
+  }
+
+  delay(500);
+
+  stepper.moveTo(0);
+  while (stepper.distanceToGo() != 0) {
+    stepper.run();
+  }
+
+  Serial.println("Cycle complete");
+}
