@@ -1,0 +1,80 @@
+//includes libraries
+#include <AccelStepper.h>
+#include <math.h>
+
+AccelStepper stepper(AccelStepper::DRIVER, 3, 2); //step 3, dir 2
+
+const int ir1 = 4; //set first ir sensor
+const int ir2 = 5; //set second ir sensor
+
+unsigned long t1 = 0; //time of first "beambreak"
+unsigned long t2 = 0; //time of second "beambreak"
+long mStep = 0; //the distance of the y axis converted to steps
+
+float dt = 0; //delta time between the sensors triggering
+float vxi= 0; //initial horizontal speed off the ramp
+float x = 0; //distance the trolley should move
+float t = 0; //time it takes the marble to fall
+
+const float sensDist = 0.04; //distance between sensors (4cm)
+const float y = 0.675; //height of table
+const float g = 9.8; //gravity
+
+void setup() {
+  //Serial.begin(9600);
+
+  pinMode(ir1, INPUT); //sets pin 4 to read
+  pinMode(ir2, INPUT); //sets pin 5 to read
+
+  stepper.setMaxSpeed(200000.0); //sets the max speed of the stepper
+  stepper.setAcceleration(200000.0); //sets the max acceleration of the stepper
+  stepper.setCurrentPosition(0); //sets the current position of the stepper as 0
+
+
+}
+
+void loop() {
+  /*if (stepper.distanceToGo()==0)
+  stepper.moveTo(-stepper.currentPosition());
+  stepper.run();
+  */
+
+  if (digitalRead(ir1) == LOW && t1 == 0) { //condition: when pin 4 reads low and t1 is reset
+    t1 = millis(); //take timestamp of "beambreak" 1
+  }
+
+  if (digitalRead(ir2) == LOW && t1 != 0 && t2 == 0) { //condition: when pin5 reads low and t2 is reset
+    t2 = millis(); //take timestamp of "beambreak" 2
+  }
+
+  if (t2>t1) { //condition: when t2 is larger than t1
+
+    dt = (t2 - t1) / 1000.0; //delta time & conversion from milliseconds to seconds
+    vxi = sensDist / dt; //calculating the horizontal speed off the ramp (v=d/t)
+    //Serial.println(vxi);
+
+    t = sqrt((2 * y) / g); //calculates thet ime it takes for the vertical fall off the ramp
+    x = vxi * t; //uses the time to calculate the horizontal distance the marble will go 
+
+    mStep = x * 100.0 * 50; //meters to steps conversion
+
+    stepper.moveTo(mStep); //go how many steps it determined
+
+    while (stepper.distanceToGo() != 0) { //don't stop the motor until it reaches its destination
+      stepper.run(); //run the stepper
+    }
+
+    delay(1000); //wait at the catch point
+
+    stepper.moveTo(0); //go back to zero (home)
+
+    while (stepper.distanceToGo() != 0) { //don't stop the motor until it reaches its destination
+      stepper.run(); //run the stepper
+    }
+
+    t1 = 0; //reset t1
+    t2 = 0; //reset t2
+    mStep = 0; //reset mStep
+
+  }
+}
