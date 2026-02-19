@@ -4,27 +4,27 @@
 
 AccelStepper stepper(AccelStepper::DRIVER, 3, 2); //step 3, dir 2
 
-const int ir1 = 4; //set first ir sensor
-const int ir2 = 5; //set second ir sensor
+const int firstSens = 4; //set first ir sensor
+const int secondSens = 5; //set second ir sensor
 
-unsigned long t1 = 0; //time of first "beambreak"
-unsigned long t2 = 0; //time of second "beambreak"
+unsigned long firstBeambreak = 0; //time of first "beambreak"
+unsigned long secondBeambreak = 0; //time of second "beambreak"
 long mStep = 0; //the distance of the y axis converted to steps
 
-float dt = 0; //delta time between the sensors triggering
-float vxi= 0; //initial horizontal speed off the ramp
-float x = 0; //distance the trolley should move
-float t = 0; //time it takes the marble to fall
+float sensTime = 0; //delta time between the sensors triggering
+float rampVelocity= 0; //initial horizontal speed off the ramp
+float distance = 0; //distance the trolley should move
+float fallTime = 0; //time it takes the marble to fall
 
 const float sensDist = 0.04; //distance between sensors (4cm)
-const float y = 0.675; //height of table
-const float g = 9.8; //gravity
+const float height = 0.675; //height of table
+const float grav = 9.8; //gravity
 
 void setup() {
-  //Serial.begin(9600);
+  Serial.begin(9600);
 
-  pinMode(ir1, INPUT); //sets pin 4 to read
-  pinMode(ir2, INPUT); //sets pin 5 to read
+  pinMode(firstSens, INPUT); //sets pin 4 to read
+  pinMode(secondSens, INPUT); //sets pin 5 to read
 
   stepper.setMaxSpeed(200000.0); //sets the max speed of the stepper
   stepper.setAcceleration(200000.0); //sets the max acceleration of the stepper
@@ -39,24 +39,24 @@ void loop() {
   stepper.run();
   */
 
-  if (digitalRead(ir1) == LOW && t1 == 0) { //condition: when pin 4 reads low and t1 is reset
-    t1 = millis(); //take timestamp of "beambreak" 1
+  if (digitalRead(firstSens) == LOW && firstBeambreak == 0) { //condition: when pin 4 reads low and t1 is reset
+    firstBeambreak = millis(); //take timestamp of "beambreak" 1
   }
 
-  if (digitalRead(ir2) == LOW && t1 != 0 && t2 == 0) { //condition: when pin5 reads low and t2 is reset
-    t2 = millis(); //take timestamp of "beambreak" 2
+  if (digitalRead(secondSens) == LOW && firstBeambreak != 0 && secondBeambreak == 0) { //condition: when pin5 reads low and t2 is reset
+    secondBeambreak = millis(); //take timestamp of "beambreak" 2
   }
 
-  if (t2>t1) { //condition: when t2 is larger than t1
+  if (secondBeambreak>firstBeambreak) { //condition: when t2 is larger than t1
 
-    dt = (t2 - t1) / 1000.0; //delta time & conversion from milliseconds to seconds
-    vxi = sensDist / dt; //calculating the horizontal speed off the ramp (v=d/t)
-    //Serial.println(vxi);
+    sensTime = (secondBeambreak - firstBeambreak) / 1000.0; //delta time & conversion from milliseconds to seconds
+    rampVelocity = sensDist / sensTime; //calculating the horizontal speed off the ramp (v=d/t)
+    Serial.println(rampVelocity);
 
-    t = sqrt((2 * y) / g); //calculates thet ime it takes for the vertical fall off the ramp
-    x = vxi * t; //uses the time to calculate the horizontal distance the marble will go 
+    fallTime = sqrt((2 * height) / grav); //calculates thet ime it takes for the vertical fall off the ramp
+    distance = rampVelocity * fallTime; //uses the time to calculate the horizontal distance the marble will go 
 
-    mStep = x * 100.0 * 50; //meters to steps conversion
+    mStep = distance * 100.0 * 50; //meters to steps conversion
 
     stepper.moveTo(mStep); //go how many steps it determined
 
@@ -72,8 +72,8 @@ void loop() {
       stepper.run(); //run the stepper
     }
 
-    t1 = 0; //reset t1
-    t2 = 0; //reset t2
+    firstBeambreak = 0; //reset t1
+    secondBeambreak = 0; //reset t2
     mStep = 0; //reset mStep
 
   }
